@@ -1,11 +1,3 @@
-// ============================================================
-// renderer.js — 纯 DOM 交互层（WebGL 液态玻璃管线已下线）
-//
-// 背景渐变与主面板毛玻璃全部由 CSS 提供（见 styles.css / materials.css），
-// 本文件只保留 .box 按钮的果冻按压 / 拖动弹簧动画，不触碰任何 canvas / GL。
-// ============================================================
-
-// ============ 弹簧 ============
 class Spring {
     constructor(stiffness = 400, damping = 29, mass = 1.0) {
         this.stiffness = stiffness;
@@ -35,14 +27,23 @@ class Spring {
 
 // ============ 果冻按压 / 拖动 ============
 function attachJellyDrag(el) {
-    const springX = new Spring(320, 16);
-    const springY = new Spring(320, 16);
+    // ★ 参数微调：提高刚度加快反应，阻尼从 32 降到 17（保留轻微回弹，杜绝“黏住”感）
+    const SPRING_STIFF = 380;
+    const SPRING_DAMP = 17;
+
+    // 缩放弹簧
+    const springX = new Spring(SPRING_STIFF, SPRING_DAMP);
+    const springY = new Spring(SPRING_STIFF, SPRING_DAMP);
+    
+    // ★ 平移弹簧：用来平滑处理位置偏移，彻底消除方向突变时的“抽动”
+    const springTx = new Spring(SPRING_STIFF, SPRING_DAMP);
+    const springTy = new Spring(SPRING_STIFF, SPRING_DAMP);
 
     springX.value = springX.target = 1;
     springY.value = springY.target = 1;
+    springTx.value = springTx.target = 0;
+    springTy.value = springTy.target = 0;
 
-    // 不能在 attach 时测量：设置页按钮此时 display:none，rect 为 0×0，
-    // 补偿会恒为 0，缩放退化成以中心为原点向两侧扩张。改为按下时测量。
     let baseW = 0;
     let baseH = 0;
 
@@ -58,7 +59,7 @@ function attachJellyDrag(el) {
 
     const MAX_STRETCH = 0.15;
     const FULL_STRETCH_DIST = 120;
-    const PRESS_SCALE = 1.04;
+    const PRESS_SCALE = 1.03;
 
     function tick(now) {
         if (lastFrameTime === 0) lastFrameTime = now;
@@ -67,21 +68,17 @@ function attachJellyDrag(el) {
 
         const sx = springX.update(dt);
         const sy = springY.update(dt);
-
-        // 补偿用 Math.sign 而非连续分量。拖动方向一侧固定不动，
-        // 反方向一侧拉长；斜向拖动时两个轴各自独立做单边固定。
-        // press 态 dirX/dirY 为 0，sign 也为 0，保持居中原点按压放大。
-        const signX = Math.sign(dirX);
-        const signY = Math.sign(dirY);
-        const tx = signX * (sx - 1) * baseW / 2;
-        const ty = signY * (sy - 1) * baseH / 2;
+        // 平滑读取位置偏移量
+        const tx = springTx.update(dt);
+        const ty = springTy.update(dt);
 
         el.style.transform = `translate(${tx}px, ${ty}px) scale(${sx}, ${sy})`;
 
-        const settled = Math.abs(springX.value - springX.target) < 0.001 &&
-                        Math.abs(springX.velocity) < 0.001 &&
-                        Math.abs(springY.value - springY.target) < 0.001 &&
-                        Math.abs(springY.velocity) < 0.001;
+        const settled = 
+            Math.abs(springX.value - springX.target) < 0.001 && Math.abs(springX.velocity) < 0.001 &&
+            Math.abs(springY.value - springY.target) < 0.001 && Math.abs(springY.velocity) < 0.001 &&
+            Math.abs(springTx.value - springTx.target) < 0.001 && Math.abs(springTx.velocity) < 0.001 &&
+            Math.abs(springTy.value - springTy.target) < 0.001 && Math.abs(springTy.velocity) < 0.001;
 
         if (!settled) {
             rafId = requestAnimationFrame(tick);
@@ -139,6 +136,13 @@ function attachJellyDrag(el) {
             springX.set(Math.max(0.7, targetSX));
             springY.set(Math.max(0.7, targetSY));
 
+            const signX = Math.sign(dx);
+            const signY = Math.sign(dy);
+
+            // ★ 给平移目标也设定弹簧，让它平滑追踪，不再硬切
+            springTx.set(signX * (targetSX - 1) * baseW / 2);
+            springTy.set(signY * (targetSY - 1) * baseH / 2);
+
             dirX = unitX;
             dirY = unitY;
 
@@ -158,8 +162,11 @@ function attachJellyDrag(el) {
 
         springX.set(1);
         springY.set(1);
+        springTx.set(0);
+        springTy.set(0);
 
-        const maxVel = 2.0;
+        // 稍微放大最大初速度，让松手那一下有“嘣”的利落感，但阻尼 17 会很快拉住它
+        const maxVel = 3.0;
         springX.setVelocity(Math.max(-maxVel, Math.min(maxVel, velocityX / 400)));
         springY.setVelocity(Math.max(-maxVel, Math.min(maxVel, velocityY / 400)));
 
@@ -170,7 +177,6 @@ function attachJellyDrag(el) {
         if (e.button !== 0 || state !== 'idle') return;
         e.preventDefault();
 
-        // 按下时元素必然可见，此刻测得的尺寸才是有效的补偿基准。
         const r = el.getBoundingClientRect();
         baseW = r.width;
         baseH = r.height;
@@ -187,6 +193,8 @@ function attachJellyDrag(el) {
 
         springX.set(PRESS_SCALE);
         springY.set(PRESS_SCALE);
+        springTx.set(0);
+        springTy.set(0);
         startAnim();
 
         window.addEventListener('pointermove', onWindowPointerMove);
