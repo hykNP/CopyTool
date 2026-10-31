@@ -1,8 +1,11 @@
+* linguist-vendored=false
+
 rpmalloc.c linguist-vendored
 rpmalloc.h linguist-vendored
 malloc.c linguist-vendored
 rpnew.h linguist-vendored
-CopyCore/rpmalloc.c linguist-vendored
-CopyCore/rpmalloc.h linguist-vendored
-CopyCore/malloc.c linguist-vendored
-CopyCore/rpnew.h linguist-vendored
+
+**/rpmalloc.c linguist-vendored
+**/rpmalloc.h linguist-vendored
+**/malloc.c linguist-vendored
+**/rpnew.h linguist-vendored
