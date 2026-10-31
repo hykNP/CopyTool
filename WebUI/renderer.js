@@ -207,3 +207,109 @@ function attachJellyDrag(el) {
 
 // 所有 .box 按钮（开始复制 / 保存）使用纯 DOM 果冻交互。
 document.querySelectorAll('.box').forEach(el => attachJellyDrag(el));
+
+
+function setupCustomDropdowns() {
+    const selects = document.querySelectorAll('.select-wrapper select.m4-select');
+    if (!selects.length) return;
+
+    // 取原生 value 访问器，之后包一层拦截：任何代码程序化赋值都同步刷新自绘按钮
+    const protoDesc = Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value');
+
+    function build(select) {
+        const wrapper = select.closest('.select-wrapper');
+        if (!wrapper || wrapper.dataset.ddInit) return;
+        wrapper.dataset.ddInit = '1';
+
+        select.classList.add('dd-native');
+        select.tabIndex = -1;
+
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'dd-button';
+        btn.setAttribute('aria-haspopup', 'listbox');
+        btn.setAttribute('aria-expanded', 'false');
+        const label = document.createElement('span');
+        label.className = 'dd-label';
+        btn.appendChild(label);
+
+        const panel = document.createElement('div');
+        panel.className = 'dd-panel';
+        panel.hidden = true;
+
+        wrapper.appendChild(btn);
+        wrapper.appendChild(panel);
+
+        function refreshLabel() {
+            const i = select.selectedIndex;
+            label.textContent = i >= 0 ? select.options[i].textContent : '';
+        }
+
+        // 拦截 value：原生行为不变，只是赋值后刷新按钮文字
+        Object.defineProperty(select, 'value', {
+            configurable: true,
+            get() { return protoDesc.get.call(select); },
+            set(v) {
+                protoDesc.set.call(select, v);
+                refreshLabel();
+            }
+        });
+
+        // applyLang 会改写 <option> 文案（策略项随语言变化），监听后同步刷新
+        const mo = new MutationObserver(refreshLabel);
+        for (const opt of select.options) {
+            mo.observe(opt, { childList: true, characterData: true, subtree: true });
+        }
+
+        function closeAll() {
+            document.querySelectorAll('.dd-panel:not([hidden])').forEach(p => {
+                p.hidden = true;
+                const w = p.closest('.select-wrapper');
+                const b = w && w.querySelector('.dd-button');
+                if (b) b.setAttribute('aria-expanded', 'false');
+            });
+        }
+
+        function open() {
+            closeAll();
+            panel.innerHTML = '';
+            const current = select.value;
+            for (const opt of select.options) {
+                const item = document.createElement('div');
+                item.className = 'dd-opt' + (opt.value === current ? ' selected' : '');
+                item.textContent = opt.textContent;
+                // 使用 mousedown 防止当面板隐藏时 select 状态被意外重置
+                item.addEventListener('mousedown', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    select.value = opt.value; // 走上面的拦截 setter
+                    select.dispatchEvent(new Event('change', { bubbles: true }));
+                    closeAll();
+                });
+                panel.appendChild(item);
+            }
+            panel.hidden = false;
+            btn.setAttribute('aria-expanded', 'true');
+        }
+
+        btn.addEventListener('click', (e) => {
+            e.stopPropagation(); // 阻止冒泡到 document 的 click
+            if (panel.hidden) open(); else closeAll();
+        });
+        btn.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') { closeAll(); e.preventDefault(); }
+            else if (e.key === 'ArrowDown' && panel.hidden) { e.preventDefault(); open(); }
+        });
+        
+        // 监听 document 的 click 以关闭面板（不会受到 pointerdown 冲突影响）
+        document.addEventListener('click', (e) => {
+            if (!wrapper.contains(e.target)) closeAll();
+        });
+
+        refreshLabel();
+    }
+
+    selects.forEach(build);
+}
+
+setupCustomDropdowns();

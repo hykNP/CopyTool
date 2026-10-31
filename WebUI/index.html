@@ -72,12 +72,13 @@
                 <div class="controls-row">
                     <div class="select-group">
                         <label data-i18n="form.strategyLabel">策略</label>
-                        <select class="m4-select" id="strategySelect">
-                            <option value="0" data-i18n="strategy.auto">智能检测</option>
-                            <option value="1" data-i18n="strategy.small">小文件优化</option>
-                            <option value="2" data-i18n="strategy.large">大文件优化</option>
-                            <option value="3" data-i18n="strategy.balanced">平衡模式</option>
-                        </select>
+                        <div class="select-wrapper">
+                            <select class="m4-select" id="strategySelect">
+                                <option value="0" data-i18n="strategy.auto">智能检测</option>
+                                <option value="1" data-i18n="strategy.small">小文件优化</option>
+                                <option value="2" data-i18n="strategy.large">大文件优化</option>
+                            </select>
+                        </div>
                     </div>
                     <label class="checkbox-group">
                         <input type="checkbox" id="verifyCheck">
@@ -105,24 +106,28 @@
                     <label data-i18n="form.speedLimit">速度限制</label>
                     <div class="input-group">
                         <input type="text" id="speedInput" value="0" spellcheck="false">
-                        <select class="m4-select m4-select--compact" id="unitSelect">
-                            <option value="0">KB/s</option>
-                            <option value="1" selected>MB/s</option>
-                            <option value="2">GB/s</option>
-                        </select>
+                        <div class="select-wrapper select-wrapper--compact">
+                            <select class="m4-select" id="unitSelect">
+                                <option value="0">KB/s</option>
+                                <option value="1" selected>MB/s</option>
+                                <option value="2">GB/s</option>
+                            </select>
+                        </div>
                     </div>
                     <span class="hint" data-i18n="hint.unlimited">0 = 不限速</span>
                 </div>
 
                 <div class="form-row">
                     <label data-i18n="form.language">语言</label>
-                    <select class="m4-select" id="langSelect">
-                        <option value="0" data-i18n="lang.zhCN">简体中文</option>
-                        <option value="1" data-i18n="lang.zhTW">繁體中文</option>
-                        <option value="2" data-i18n="lang.en">English</option>
-                        <option value="3" data-i18n="lang.ko">한국어</option>
-                        <option value="4" data-i18n="lang.ja">日本語</option>
-                    </select>
+                    <div class="select-wrapper">
+                        <select class="m4-select" id="langSelect">
+                            <option value="0" data-i18n="lang.zhCN">简体中文</option>
+                            <option value="1" data-i18n="lang.zhTW">繁體中文</option>
+                            <option value="2" data-i18n="lang.en">English</option>
+                            <option value="3" data-i18n="lang.ko">한국어</option>
+                            <option value="4" data-i18n="lang.ja">日本語</option>
+                        </select>
+                    </div>
                 </div>
 
                 <div class="actions-row">

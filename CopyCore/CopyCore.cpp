@@ -26,7 +26,7 @@ enum CopyMode {
 };
 
 enum OptimizeStrategy {
-    STRATEGY_AUTO, STRATEGY_SMALL, STRATEGY_LARGE, STRATEGY_BALANCED
+    STRATEGY_AUTO, STRATEGY_SMALL, STRATEGY_LARGE
 };
 
 enum DiskType { DISK_UNKNOWN = 0, DISK_SSD, DISK_HDD, DISK_USB, DISK_NETWORK };
@@ -35,42 +35,32 @@ typedef struct {
     const wchar_t* displayName;
     const wchar_t* shortName;
     int threads;
-    size_t bufferSize;
-    DWORD srcFlags;
-    DWORD dstFlags;
-    BOOL preallocate;
-    int speedPriority;
 } ModeConfig;
 
 static const ModeConfig g_ModeConfigs[] = {
-    {L"自动识别", L"自动", 0, 0, 0, 0, TRUE, 5},
-    {L"均衡模式", L"均衡", 32, 2*1024*1024, FILE_FLAG_SEQUENTIAL_SCAN, FILE_FLAG_SEQUENTIAL_SCAN, TRUE, 5},
-    {L"SSD→SSD", L"SSD→SSD", 32, 2*1024*1024, FILE_FLAG_SEQUENTIAL_SCAN, FILE_FLAG_SEQUENTIAL_SCAN, TRUE, 10},
-    {L"HDD→HDD", L"HDD→HDD", 4, 4*1024*1024, FILE_FLAG_SEQUENTIAL_SCAN, FILE_FLAG_SEQUENTIAL_SCAN, TRUE, 4},
-    {L"HDD→SSD", L"HDD→SSD", 8, 2*1024*1024, FILE_FLAG_SEQUENTIAL_SCAN, FILE_FLAG_SEQUENTIAL_SCAN, TRUE, 7},
-    {L"SSD→HDD", L"SSD→HDD", 8, 2*1024*1024, FILE_FLAG_SEQUENTIAL_SCAN, FILE_FLAG_SEQUENTIAL_SCAN, TRUE, 6},
-    {L"SSD→UFD", L"SSD→UFD", 2, 1*1024*1024, FILE_FLAG_SEQUENTIAL_SCAN, FILE_FLAG_SEQUENTIAL_SCAN, FALSE, 3},
-    {L"UFD→SSD", L"UFD→SSD", 4, 2*1024*1024, FILE_FLAG_SEQUENTIAL_SCAN, FILE_FLAG_SEQUENTIAL_SCAN, TRUE, 6},
-    {L"HDD→UFD", L"HDD→UFD", 2, 1*1024*1024, FILE_FLAG_SEQUENTIAL_SCAN, FILE_FLAG_SEQUENTIAL_SCAN, FALSE, 2},
-    {L"UFD→HDD", L"UFD→HDD", 2, 2*1024*1024, FILE_FLAG_SEQUENTIAL_SCAN, FILE_FLAG_SEQUENTIAL_SCAN, TRUE, 3},
-    {L"UFD→UFD", L"UFD→UFD", 1, 1*1024*1024, FILE_FLAG_SEQUENTIAL_SCAN, FILE_FLAG_SEQUENTIAL_SCAN, FALSE, 1},
-    {L"极速狂飙", L"极速", 32, 2*1024*1024, FILE_FLAG_SEQUENTIAL_SCAN, FILE_FLAG_SEQUENTIAL_SCAN, TRUE, 10}
+    {L"自动识别", L"自动", 0},
+    {L"均衡模式", L"均衡", 16},
+    {L"SSD→SSD", L"SSD→SSD", 16},
+    {L"HDD→HDD", L"HDD→HDD", 4},
+    {L"HDD→SSD", L"HDD→SSD", 8},
+    {L"SSD→HDD", L"SSD→HDD", 8},
+    {L"SSD→UFD", L"SSD→UFD", 2},
+    {L"UFD→SSD", L"UFD→SSD", 4},
+    {L"HDD→UFD", L"HDD→UFD", 2},
+    {L"UFD→HDD", L"UFD→HDD", 2},
+    {L"UFD→UFD", L"UFD→UFD", 1},
+    {L"极速狂飙", L"极速", 32}
 };
 
 typedef struct {
     int threads;
-    size_t bufferSize;
-    size_t largeThreshold;
-    BOOL useNoBuffering;
-    BOOL preallocate;
     const wchar_t* name;
 } StrategyConfig;
 
 static const StrategyConfig g_strategyConfigs[] = {
-    {0, 0, 0, FALSE, FALSE, L"智能检测"},
-    {16, 2*1024*1024, LARGE_FILE_THRESHOLD, FALSE, TRUE, L"小文件优化"},
-    {32, 4*1024*1024, 1*1024*1024, FALSE, TRUE, L"大文件优化"},
-    {16, 2*1024*1024, LARGE_FILE_THRESHOLD, FALSE, TRUE, L"平衡模式"}
+    {0, L"智能检测"},
+    {16, L"小文件优化"},
+    {32, L"大文件优化"}
 };
 
 static int currentLang = 0;
@@ -138,7 +128,6 @@ static const LangEntry g_LangTable[] = {
     {"strategy_auto", L"智能检测", L"智慧偵測", L"Auto Detect", L"자동 감지", L"自動検出"},
     {"strategy_small", L"小文件优化", L"小檔案最佳化", L"Small Files", L"작은 파일", L"小ファイル最適化"},
     {"strategy_large", L"大文件优化", L"大檔案最佳化", L"Large Files", L"큰 파일", L"大ファイル最適化"},
-    {"strategy_balanced", L"平衡模式", L"平衡模式", L"Balanced", L"균형", L"バランス"},
     {"nav_home", L"主页", L"主頁", L"Home", L"홈", L"ホーム"},
     {"remaining_time", L"还需", L"還需", L"Remaining", L"남음", L"残り"},
     {"scanning_files", L"扫描中... %d 个文件", L"掃描中... %d 個檔案", L"Scanning... %d files", L"스캔중... %d개의 파일", L"スキャン中... %d個のファイル"},
@@ -168,7 +157,6 @@ static const wchar_t* GetText(const char* id) {
 }
 
 static int g_strategy = STRATEGY_AUTO;
-static size_t g_largeFileThreshold = LARGE_FILE_THRESHOLD;
 
 static CRITICAL_SECTION cs;
 static BOOL g_csInited = FALSE;
@@ -191,10 +179,6 @@ static wchar_t dstPath[MAX_PATH] = L"";
 static wchar_t statusText[128] = L"准备就绪";
 
 static int g_workerThreads = 16;
-static size_t g_bufferSize = 2 * 1024 * 1024;
-static DWORD g_srcFlags = FILE_FLAG_SEQUENTIAL_SCAN;
-static DWORD g_dstFlags = FILE_FLAG_SEQUENTIAL_SCAN;
-static BOOL g_preallocate = TRUE;
 static BOOL g_destIsFresh = FALSE;
 
 typedef struct FileNode {
@@ -238,9 +222,6 @@ static double currentSpeedMB = 0.0;
 static ULONGLONG lastSpeedTime = 0;
 static long long lastSpeedBytes = 0;
 
-// 线程 I/O 优先级提升（Win8+ kernel32）：扫描线程 3(High)，复制 worker 4(Critical)。
-// 空闲机器上无收益；系统忙时让本工具的 I/O 优先调度，避免被其他进程饿死。
-// 动态获取，旧系统无此 API 时自动降级为普通优先级。
 typedef BOOL (WINAPI *SetThreadIoPriority_t)(HANDLE, int);
 static SetThreadIoPriority_t g_pSetThreadIoPriority = NULL;
 static BOOL g_ioPriorityInited = FALSE;
@@ -396,25 +377,9 @@ void ApplyModeConfig(int mode) {
         cfg = &g_ModeConfigs[autoMode];
     }
     g_workerThreads = cfg->threads;
-    g_bufferSize = cfg->bufferSize;
-    g_srcFlags = cfg->srcFlags;
-    g_dstFlags = cfg->dstFlags;
-    g_preallocate = cfg->preallocate;
     if (g_strategy != STRATEGY_AUTO) {
         const StrategyConfig* sc = &g_strategyConfigs[g_strategy];
         if (sc->threads > 0) g_workerThreads = sc->threads;
-        if (sc->bufferSize > 0) g_bufferSize = sc->bufferSize;
-        g_largeFileThreshold = sc->largeThreshold;
-        g_preallocate = sc->preallocate;
-        if (!sc->useNoBuffering) {
-            g_srcFlags &= ~FILE_FLAG_NO_BUFFERING;
-            g_dstFlags &= ~FILE_FLAG_NO_BUFFERING;
-        } else {
-            g_srcFlags |= FILE_FLAG_NO_BUFFERING;
-            g_dstFlags |= FILE_FLAG_NO_BUFFERING;
-        }
-    } else {
-        g_largeFileThreshold = LARGE_FILE_THRESHOLD;
     }
 }
 
@@ -546,7 +511,6 @@ DWORD WINAPI CopyThreadProc(LPVOID lpParam) {
     SYSTEM_INFO si;
     GetSystemInfo(&si);
     int workerCount = g_workerThreads > 0 ? g_workerThreads : si.dwNumberOfProcessors * 2;
-    size_t tunedBuffer = g_bufferSize;
 
     if (sameDisk) {
         if (srcType == DISK_HDD || dstType == DISK_HDD) {
@@ -556,16 +520,13 @@ DWORD WINAPI CopyThreadProc(LPVOID lpParam) {
         }
     } else if (srcType == DISK_NETWORK || dstType == DISK_NETWORK) {
         if (workerCount > 8) workerCount = 8;
-        if (tunedBuffer == 0 || tunedBuffer > 64 * 1024 * 1024) tunedBuffer = 64 * 1024 * 1024;
     } else if (srcType == DISK_USB || dstType == DISK_USB) {
         if (workerCount > 8) workerCount = 8;
-        if (tunedBuffer == 0 || tunedBuffer > 64 * 1024 * 1024) tunedBuffer = 64 * 1024 * 1024;
     } else if (srcType == DISK_HDD || dstType == DISK_HDD) {
         if (workerCount > 16) workerCount = 16;
     }
     if (workerCount < 2) workerCount = 2;
     if (workerCount > MAX_WORKER_THREADS) workerCount = MAX_WORKER_THREADS;
-    g_bufferSize = tunedBuffer;
 
     if (hStopEvent) CloseHandle(hStopEvent);
     hStopEvent = CreateEventW(NULL, TRUE, FALSE, NULL);
@@ -738,7 +699,6 @@ DWORD CALLBACK CopyProgressRoutine(
         Sleep(50);
     }
 
-    // 限速：大文件由 CopyFileEx 的分块回调按增量消耗全局令牌桶
     if (lpData) {
         LARGE_INTEGER* plast = (LARGE_INTEGER*)lpData;
         if (dwCallbackReason == CALLBACK_STREAM_SWITCH) {
@@ -789,8 +749,6 @@ BOOL CopySingleFile(const wchar_t* src, const wchar_t* dst, long long fsize, DWO
         }
     }
 
-    // 限速：小文件（<=1MiB）在复制前预占令牌（CopyFileEx 对这类文件往往只在结束时回调一次，
-    // 事后等待无法阻止突发）；大文件交给 CopyProgressRoutine 按块消耗令牌桶，避免整文件预等待。
     if (fsize > 0 && fsize <= (1LL << 20)) {
         RateLimitWait(fsize);
     }
@@ -1275,7 +1233,7 @@ void CopyCore_SetSpeedLimit(int kbPerSec) {
 }
 void CopyCore_SetVerify(int enable) { enableVerify = enable ? 1 : 0; }
 void CopyCore_SetMode(int mode) { if (mode >= 0 && mode <= MODE_EXTREME) currentMode = mode; }
-void CopyCore_SetStrategy(int strategy) { if (strategy >= 0 && strategy <= STRATEGY_BALANCED) g_strategy = strategy; }
+void CopyCore_SetStrategy(int strategy) { if (strategy >= 0 && strategy <= STRATEGY_LARGE) g_strategy = strategy; }
 void CopyCore_SetLanguage(int lang) { if (lang >= 0 && lang < 5) currentLang = lang; }
 void CopyCore_SetSrcPath(const wchar_t* src) {
     if (!src) return;

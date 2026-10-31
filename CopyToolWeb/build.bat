@@ -20,15 +20,14 @@ echo [1/4] Compiling manifest resource...
 if errorlevel 1 ( echo RESOURCE BUILD FAILED & exit /b 1 )
 
 echo [2/4] Compiling icon resource...
-REM 检查 E:\CopyTool 下的 icon.rc 是否存在，存在则编译并链接
 set ICON_OBJ=
-if exist "E:\CopyTool\icon.rc" (
-    "%WINDRES%" -O coff -i "E:\CopyTool\icon.rc" -o "icon.o"
+if exist "icon.rc" (
+    "%WINDRES%" -O coff -i "icon.rc" -o "icon.o"
     if errorlevel 1 ( echo ICON BUILD FAILED & exit /b 1 )
     set ICON_OBJ=icon.o
     echo   Icon compiled successfully.
 ) else (
-    echo   [WARNING] E:\CopyTool\icon.rc not found, skipping icon.
+    echo   [WARNING] icon.rc not found, skipping icon.
 )
 
 echo [3/4] Compiling main executable...
@@ -36,6 +35,7 @@ echo [3/4] Compiling main executable...
   -Iinclude main.cpp resource.o %ICON_OBJ% -o bin\CopyToolWeb.exe ^
   -lole32 -loleaut32 -luuid -lshlwapi -ldwmapi -luser32 -lgdi32 -lcomctl32 -lshell32 ^
   -static-libgcc -static-libstdc++
+
 if errorlevel 1 ( echo BUILD FAILED & exit /b 1 )
 
 echo [4/4] Deploying dependencies...

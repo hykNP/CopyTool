@@ -1,13 +1,3 @@
-/* ============================================================
-   材质系统：M1-M4（WebGL 管线已下线，全部走 CSS）
-   M1 液态玻璃  → .box 由 CSS 玻璃 + renderer.js 果冻交互实现
-   M2 毛玻璃    → 本文件用 backdrop-filter 实现（.m2-panel）
-   M3 玻璃卡片  → 备用
-   M4 实心      → 本文件定义
-   ============================================================ */
-
-/* ================= M2：主面板（纯 CSS 毛玻璃） ================= */
-/* 兜底：不支持 backdrop-filter 的极老环境用近实色浅灰，保证可读 */
 .m2-panel {
     position: relative;
     background: rgba(244, 245, 248, 0.92);
@@ -125,34 +115,122 @@
     background: #2a70dd;
 }
 
-/* --- 下拉框 --- */
-.m4-select {
+/* --- 下拉框外壳（负责圆角和边框） --- */
+.select-wrapper {
+    position: relative;
+    display: inline-block;
+    width: 100%;
     background: #f5f6f8;
     border: 1px solid #e2e5ea;
-    border-radius: 8px;
+    border-radius: 12px;
+    overflow: hidden;
+    box-sizing: border-box;
+    transition: border-color 0.15s, background 0.15s;
+}
+
+.select-wrapper--compact {
+    width: auto;
+    min-width: 76px;
+    flex-shrink: 0;
+}
+
+.select-wrapper:hover {
+    border-color: #c2c9d3;
+}
+
+.select-wrapper:focus-within {
+    border-color: #3681f6;
+    background: #ffffff;
+    box-shadow: 0 0 0 2px rgba(54, 129, 246, 0.15);
+}
+
+/* --- 下拉框本体（完全透明） --- */
+.m4-select {
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    border: none;
+    background: transparent;
+    outline: none;
     padding: 0 30px 0 12px;
     height: 34px;
     font-size: 13px;
     color: #2c3440;
-    outline: none;
     cursor: pointer;
     font-family: inherit;
+    width: 100%;
+    margin: 0;
+    box-shadow: none;
+    background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath fill='%23808080' d='M0 0l5 6 5-6z'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 12px center;
+}
+
+/* --- 自定义圆角下拉（renderer.js setupCustomDropdowns 生成） --- */
+/* 原生 select 只作数据模型，隐藏不可见 */
+.select-wrapper .m4-select.dd-native {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    opacity: 0;
+    pointer-events: none;
+}
+/* 外壳原来 overflow:hidden 会裁掉展开面板，改为可见 */
+.select-wrapper {
+    overflow: visible;
+}
+.dd-button {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    width: 100%;
+    height: 34px;
+    padding: 0 30px 0 12px;
+    border: none;
+    background: transparent;
+    font: inherit;
+    font-size: 13px;
+    color: #2c3440;
+    cursor: pointer;
+    text-align: left;
     appearance: none;
     -webkit-appearance: none;
     background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath fill='%23808080' d='M0 0l5 6 5-6z'/%3E%3C/svg%3E");
     background-repeat: no-repeat;
     background-position: right 12px center;
-    width: 100%;
 }
-
-.m4-select:focus {
-    border-color: #3681f6;
-    background-color: #ffffff;
+.dd-button:focus {
+    outline: none;
 }
-
-.m4-select--compact {
-    width: auto;
-    min-width: 76px;
+.dd-panel {
+    position: absolute;
+    top: calc(100% + 6px);
+    left: 0;
+    min-width: 100%;
+    background: #ffffff;
+    border: 1px solid #e6e9ee;
+    border-radius: 12px;
+    box-shadow: 0 10px 32px rgba(30, 45, 80, 0.18);
+    padding: 4px;
+    z-index: 60;
+    max-height: 220px;
+    overflow-y: auto;
+}
+.dd-opt {
+    padding: 7px 10px;
+    border-radius: 8px;
+    font-size: 13px;
+    color: #2c3440;
+    cursor: pointer;
+    white-space: nowrap;
+}
+.dd-opt:hover {
+    background: #eef3fb;
+}
+.dd-opt.selected {
+    color: #2a70dd;
+    font-weight: 600;
 }
 
 /* --- 复选框 --- */
