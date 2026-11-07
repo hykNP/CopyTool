@@ -182,6 +182,7 @@ static int g_workerThreads = 16;
 static BOOL g_destIsFresh = FALSE;
 
 typedef struct FileNode {
+    OVERLAPPED ov; // 占位，保证强转 LPOVERLAPPED 时的底层结构合法性
     wchar_t src[MAX_PATH];
     wchar_t dst[MAX_PATH];
     long long fsize;
@@ -680,6 +681,15 @@ DWORD WINAPI CopyThreadProc(LPVOID lpParam) {
     return 0;
 }
 
+#if defined(_MSC_VER)
+#define COPYCORE_THREAD_LOCAL __declspec(thread)
+#else
+#define COPYCORE_THREAD_LOCAL __thread
+#endif
+
+static COPYCORE_THREAD_LOCAL long long tls_file_transferred = 0;
+static COPYCORE_THREAD_LOCAL long long tls_file_acc = 0;
+
 DWORD CALLBACK CopyProgressRoutine(
     LARGE_INTEGER TotalFileSize,
     LARGE_INTEGER TotalBytesTransferred,
@@ -694,7 +704,6 @@ DWORD CALLBACK CopyProgressRoutine(
     if (stopRequested) {
         return PROGRESS_CANCEL;
     }
-
     while (isPaused && !stopRequested) {
         Sleep(50);
     }
@@ -703,10 +712,16 @@ DWORD CALLBACK CopyProgressRoutine(
         LARGE_INTEGER* plast = (LARGE_INTEGER*)lpData;
         if (dwCallbackReason == CALLBACK_STREAM_SWITCH) {
             plast->QuadPart = 0;
+            tls_file_transferred = 0;
         } else {
-            long long delta = (long long)(TotalBytesTransferred.QuadPart - plast->QuadPart);
-            plast->QuadPart = TotalBytesTransferred.QuadPart;
-            if (delta > 0) RateLimitWait(delta);
+            long long current = TotalBytesTransferred.QuadPart;
+            long long delta = current - tls_file_transferred;
+            if (delta > 0) {
+                tls_file_transferred = current;
+                tls_file_acc += delta;
+                InterlockedAdd64((LONG64 volatile*)&copiedBytes, delta);
+                RateLimitWait(delta);
+            }
         }
     }
 
@@ -714,6 +729,9 @@ DWORD CALLBACK CopyProgressRoutine(
 }
 
 BOOL CopySingleFile(const wchar_t* src, const wchar_t* dst, long long fsize, DWORD fattrs, const FILETIME* fwriteTime, const FILETIME* fcreateTime) {
+    tls_file_transferred = 0;
+    tls_file_acc = 0;
+
     WIN32_FILE_ATTRIBUTE_DATA dstAttr;
     memset(&dstAttr, 0, sizeof(dstAttr));
     LARGE_INTEGER srcSize;
@@ -764,6 +782,11 @@ BOOL CopySingleFile(const wchar_t* src, const wchar_t* dst, long long fsize, DWO
     }
 
     if (!result) {
+        if (tls_file_acc > 0) {
+            InterlockedAdd64((LONG64 volatile*)&copiedBytes, -tls_file_acc);
+            tls_file_acc = 0;
+        }
+        tls_file_transferred = 0;
         DeleteFileW(dst);
         return FALSE;
     }
@@ -794,7 +817,11 @@ BOOL CopySingleFile(const wchar_t* src, const wchar_t* dst, long long fsize, DWO
 
     if (fattrs != INVALID_FILE_ATTRIBUTES) SetFileAttributesW(dst, fattrs);
 
-    InterlockedAdd64((LONG64 volatile*)&copiedBytes, fsize);
+    if (tls_file_acc < fsize) {
+        InterlockedAdd64((LONG64 volatile*)&copiedBytes, fsize - tls_file_acc);
+    }
+    tls_file_acc = 0;
+    tls_file_transferred = 0;
     return TRUE;
 }
 

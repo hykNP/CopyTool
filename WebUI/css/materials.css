@@ -64,7 +64,7 @@
     color: #9aa4b2;
 }
 
-/* --- 按钮（实心） --- */
+
 .m4-btn {
     display: inline-flex;
     align-items: center;
@@ -81,6 +81,38 @@
     cursor: pointer;
     transition: background 0.15s, color 0.15s, border-color 0.15s;
     white-space: nowrap;
+
+    /* 新增：为 ::after 光带提供定位上下文，并裁剪 blur 溢出 */
+    position: relative;
+    overflow: hidden;
+    isolation: isolate;
+
+    /* 新增：多层 inset 白色阴影（玻璃边缘反光，画在文字之下） */
+    box-shadow:
+        inset 1px -1px 1px -1px rgba(255, 255, 255, 0.85),
+        inset -1px 1px 1px -1px rgba(255, 255, 255, 0.85),
+        inset 3px -3px 1px -3px rgba(255, 255, 255, 0.45),
+        inset -3px 3px 1px -3px rgba(255, 255, 255, 0.45),
+        inset 0 0 0 1px rgba(255, 255, 255, 0.25),
+        0 2px 6px rgba(0, 0, 0, 0.08);
+}
+
+/* 新增：45° 对角光带，只覆盖四角，中间透明 */
+.m4-btn::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    filter: blur(2px);
+    background: linear-gradient(
+        45deg,
+        rgba(255, 255, 255, 0.45) 0%,
+        transparent 30%,
+        transparent 70%,
+        rgba(255, 255, 255, 0.45) 100%
+    );
+    pointer-events: none;
+    z-index: 0;
 }
 
 .m4-btn:hover:not(:disabled) {
@@ -96,6 +128,11 @@
     cursor: not-allowed;
 }
 
+/* disabled 时关掉光带，避免叠在灰按钮上显得脏 */
+.m4-btn:disabled::after {
+    display: none;
+}
+
 .m4-btn--outline {
     background: transparent;
     border: 1px solid #d6dbe3;
@@ -109,6 +146,17 @@
 .m4-btn--primary {
     background: #3681f6;
     color: #ffffff;
+}
+
+/* primary 是蓝底，白色光带要收一点，否则角上发白 */
+.m4-btn--primary::after {
+    background: linear-gradient(
+        45deg,
+        rgba(255, 255, 255, 0.22) 0%,
+        transparent 30%,
+        transparent 70%,
+        rgba(255, 255, 255, 0.22) 100%
+    );
 }
 
 .m4-btn--primary:hover:not(:disabled) {
