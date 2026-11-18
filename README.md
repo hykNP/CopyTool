@@ -24,4 +24,4 @@
 ## 🚀 快速开始
 1. 前往 Releases 页面下载最新的 CopyTool
 2. 解压后双击 CopyToolWeb.exe 运行。
-3. 确保系统已安装 [WebView2 Runtime](https://developer.microsoft.com/zh-cn/microsoft-edge/webview2/)。
+3. 确保系统已安装 [WebView2 Runtime](https://developer.microsoft.com/zh-cn/microsoft-edge/webview2/)。且要Windows 10 ×64以上
