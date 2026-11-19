@@ -3,6 +3,7 @@ bin/
 obj/
 CopyToolWeb/bin/
 CopyToolWeb/obj/
+dist/
 x64/
 *.o
 *.obj

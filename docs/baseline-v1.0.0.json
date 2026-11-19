@@ -1,0 +1,60 @@
+{
+  "product": "CopyTool",
+  "version": "1.0.0",
+  "date": "2026-11-19",
+  "git_tag": "v1.0.0",
+  "platform": "Windows x64",
+  "note": "基线快照。后续版本对比代码用 git diff v1.0.0..HEAD，对比产物用下面的 size/sha256，对比性能用 benchmark 段。",
+
+  "build": {
+    "core": "CopyCore\\build.bat  (g++ -shared -O2 -std=c++14 -DENABLE_OVERRIDE=1)",
+    "host": "CopyToolWeb\\build.bat",
+    "pack": "pack_release.bat 1.0.0",
+    "strip": "C:\\mingw64\\bin\\strip.exe --strip-all"
+  },
+
+  "artifacts": {
+    "CopyToolWeb.exe":   { "size": 394752, "sha256": "E4DB8E3F1A13A2CFAC587EF0673BD009BA03D36EFE3E700B8DA0D487F3ABC1B2" },
+    "CopyCore.dll":      { "size": 144896, "sha256": "16CEBDE10E75BBA536A7437899ED5E147CCAA762410E0F3B2C4D7ECD468BD936" },
+    "WebView2Loader.dll":{ "size": 163680, "sha256": "C66E4A92FDC7A216118E43B7A5024EA2200E8C43F9310BF20D96A0084F82C5BC" },
+    "README.txt":        { "size": 777,    "sha256": "1D47434DFEBA6EA287BB9E32CFE0F8193A472441DDA59D850C0B6C67B353768D" },
+    "THIRD-PARTY-NOTICES.txt": { "size": 160, "sha256": "70D2206B09A2E75B4DF4F2512A9F4010151A8CBACAB77C98D12EAE160BE3EFDC" },
+    "zip": { "name": "CopyTool-v1.0.0-win64.zip", "size": 319764, "sha256": "078CEAFC9AD3C1FCB9BF369E656A9D8958C69FB75210C28A3480B3544EDB59E6" }
+  },
+
+  "runtime": {
+    "data_dir": "%LOCALAPPDATA%\\CopyTool",
+    "webview_data": "%LOCALAPPDATA%\\CopyTool\\EBWebView",
+    "config": "%LOCALAPPDATA%\\CopyTool\\config.ini",
+    "install_dir_files": 5
+  },
+
+  "tuning": {
+    "parallel_min_mb": 256,
+    "chunk_kb": 16384,
+    "queue_depth": 4,
+    "max_parallel": 2,
+    "same_disk_parallel": 1,
+    "threads": "logical_cores",
+    "nobuffering_default": false,
+    "env_overrides": [
+      "COPYCORE_THREADS",
+      "COPYCORE_FORCE_PARALLEL",
+      "COPYCORE_PARALLEL_MIN_MB",
+      "COPYCORE_CHUNK_KB",
+      "COPYCORE_QD",
+      "COPYCORE_MAX_PARALLEL",
+      "COPYCORE_NOBUF"
+    ]
+  },
+
+  "benchmark": {
+    "machine": "i3-12100F 4C/8T, 16GB, SATA SSD (Hanstor 256GB / Kingston SA400 240GB)",
+    "small_5000x8KB_seconds":  [1.00, 1.10],
+    "small_before_seconds":    [2.20, 3.73],
+    "medium_20x64MB":          "flat",
+    "large_1x2GB_seconds":     [4.33, 7.50],
+    "mixed_1687MB":            "flat",
+    "nobuffering_probe_seconds": 12.27
+  }
+}

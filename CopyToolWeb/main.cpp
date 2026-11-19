@@ -77,6 +77,7 @@ static ICoreWebView2*                g_webview    = NULL;
 static ICoreWebView2Environment*     g_env        = NULL;
 static HMODULE g_loaderDll = NULL;
 static std::wstring g_exeDir;
+static std::wstring g_dataDir;      // 运行时数据目录（WebView2 缓存 + config.ini）
 static std::wstring g_webUiDir;
 static std::wstring g_userDataDir;
 static std::wstring g_configPath;   // exe 同目录 config.ini（宿主侧持久化）
@@ -92,11 +93,8 @@ static FILE* g_logFile = NULL;
 
 static void HostLog(const wchar_t* fmt, ...) {
     if (!g_logFile) {
-        wchar_t exePath[MAX_PATH] = {0};
-        GetModuleFileNameW(NULL, exePath, MAX_PATH);
-        std::wstring p(exePath);
-        size_t slash = p.find_last_of(L"\\/");
-        std::wstring logPath = p.substr(0, slash) + L"\\host_log.txt";
+        std::wstring logDir = g_dataDir.empty() ? g_exeDir : g_dataDir;
+        std::wstring logPath = logDir + L"\\host_log.txt";
         _wfopen_s(&g_logFile, logPath.c_str(), L"a");
         if (!g_logFile) return;
     }
@@ -117,6 +115,19 @@ static std::wstring ExeDir() {
     std::wstring p(buf);
     size_t pos = p.find_last_of(L"\\/");
     return p.substr(0, pos);
+}
+
+// 运行时数据统一放 %LOCALAPPDATA%\CopyTool，安装目录只保留程序文件。
+// 这样装进 Program Files 不会因写权限失败，用户目录也不会越长越大。
+static std::wstring AppDataDir() {
+    wchar_t* base = NULL;
+    std::wstring dir;
+    if (SUCCEEDED(SHGetKnownFolderPath(FOLDERID_LocalAppData, 0, NULL, &base)) && base)
+        dir = std::wstring(base) + L"\\CopyTool";
+    if (base) CoTaskMemFree(base);
+    if (dir.empty()) dir = g_exeDir;          // 极端环境兜底：退回 exe 目录
+    SHCreateDirectoryExW(NULL, dir.c_str(), NULL);
+    return dir;
 }
 
 static std::wstring JsonEscape(const std::wstring& s) {
@@ -1004,8 +1015,9 @@ int WINAPI wWinMain(HINSTANCE hInst, HINSTANCE hPrev, PWSTR cmdLine, int nShow) 
 
     g_exeDir      = ExeDir();
     g_webUiDir    = g_exeDir + L"\\WebUI";
-    g_userDataDir = g_exeDir + L"\\userdata";
-    g_configPath  = g_exeDir + L"\\config.ini";
+    g_dataDir     = AppDataDir();
+    g_userDataDir = g_dataDir + L"\\EBWebView";
+    g_configPath  = g_dataDir + L"\\config.ini";
 
     if (!LoadCoreDll()) {
         MessageBoxW(NULL, HostL(1), L"CopyTool", MB_ICONERROR);

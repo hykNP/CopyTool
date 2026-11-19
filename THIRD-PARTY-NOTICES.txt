@@ -1,0 +1,3 @@
+This product includes rpmalloc (https://github.com/mjansson/rpmalloc)
+Copyright (c) 2016-2020 Mattias Jansson
+Licensed under the Unlicense OR MIT (MIT chosen).
