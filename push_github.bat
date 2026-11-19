@@ -1,6 +1,5 @@
 @echo off
 setlocal enabledelayedexpansion
-chcp 65001 >nul
 cd /d "%~dp0"
 
 REM Commit all changes and push main + tags to GitHub.
@@ -15,7 +14,7 @@ if /i "%MSG%"=="/auto" ( set "AUTO=/auto" & set "MSG=" )
 if "%MSG%"=="" set "MSG=chore: sync %DATE% %TIME%"
 
 set "GIT=git"
-where git >nul 2>nul || set "GIT=C:\Program Files\Git\cmd\git.exe"
+if exist "C:\Program Files\Git\cmd\git.exe" set "GIT=C:\Program Files\Git\cmd\git.exe"
 set "PS=%SystemRoot%\System32\WindowsPowerShell\v1.0\powershell.exe"
 
 "%GIT%" rev-parse --is-inside-work-tree >nul 2>nul
@@ -28,7 +27,8 @@ echo === Pre-flight check ===
 "%GIT%" add -A
 "%GIT%" diff --cached --name-only > "%TEMP%\ct_staged.txt"
 
-for /f %%C in ('type "%TEMP%\ct_staged.txt" ^| find /c /v ""') do set "COUNT=%%C"
+set "COUNT=0"
+for /f "usebackq delims=" %%F in ("%TEMP%\ct_staged.txt") do set /a COUNT+=1
 if "%COUNT%"=="0" (
     echo No changes to commit.
 ) else (
@@ -109,7 +109,9 @@ if errorlevel 1 (
 
 "%GIT%" push origin --tags
 if errorlevel 1 (
-    echo [WARN] Code pushed, but tags failed to push.
+    echo [WARN] Code pushed, but tags failed.
+    echo If the tag already exists on the remote and points to an old commit, move it explicitly:
+    echo     "%GIT%" push origin v1.0.0 --force
 )
 
 echo.
